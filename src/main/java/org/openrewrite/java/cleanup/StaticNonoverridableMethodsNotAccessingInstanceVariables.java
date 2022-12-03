@@ -9,10 +9,8 @@ import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.java.tree.Space;
-import org.openrewrite.java.tree.Statement;
 import org.openrewrite.marker.Markers;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,89 +29,48 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
     @Override
     public JavaIsoVisitor<ExecutionContext> getVisitor() {
         return new JavaIsoVisitor<ExecutionContext>() {
-
-
-            @Override
-            public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext executionContext) {
-                J.ClassDeclaration cd = super.visitClassDeclaration(classDeclaration, executionContext);
-
-                final Set<J.VariableDeclarations> allClassVariableDeclarations =  cd.getBody().getStatements().stream().filter(s -> s instanceof J.VariableDeclarations).map(s -> (J.VariableDeclarations) s).collect(Collectors.toSet());
-                final Set<J.VariableDeclarations> instanceVariableDeclarations = allClassVariableDeclarations.stream().filter(vd -> !vd.hasModifier(J.Modifier.Type.Static)).collect(Collectors.toSet());
-                Set<J.MethodDeclaration> methodsToMakeStatic = instanceVariableDeclarations.stream().map(vd -> InstanceVariablesUsage.find(vd, cd)).flatMap(Set::stream).collect(Collectors.toSet());
-
-
-
-                return cd;
-            }
-
-
-            /*
             @Override
             public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration methodDeclaration, ExecutionContext executionContext) {
                 J.MethodDeclaration md = super.visitMethodDeclaration(methodDeclaration, executionContext);
-                List<J.VariableDeclarations> instanceVariables = new ArrayList<>();
+                boolean isNonOverridable = (md.hasModifier(J.Modifier.Type.Private) || md.hasModifier(J.Modifier.Type.Final));
+                boolean isAccessingInstanceField = Boolean.TRUE.equals(getCursor().getMessage("USES_INSTANCE_VARIABLE"));
 
-
-                J.ClassDeclaration parentClassDeclaration = getCursor().getParentOrThrow().firstEnclosing(J.ClassDeclaration.class);
-                if (parentClassDeclaration != null) {
-                    for (Statement statement : parentClassDeclaration.getBody().getStatements()) {
-                        if (statement instanceof J.VariableDeclarations) {
-                            J.VariableDeclarations vd = (J.VariableDeclarations) statement;
-                            if (!vd.hasModifier(J.Modifier.Type.Static)) {
-                                instanceVariables.add(vd);
-                            }
-                        }
-                    }
-
-                    boolean isNonOverridable = (md.hasModifier(J.Modifier.Type.Private) || md.hasModifier(J.Modifier.Type.Final));
-                    boolean isAccessingInstanceField = true; // TODO Determine if method is accessing fields without static modifier or not access fields at all
-
-                   J.Block methodBody = md.getBody();
-                   if(methodBody != null) {
-                       for (Statement statement : methodBody.getStatements()) {
-                            System.out.println(statement.toString());
-                       }
-                   }
-
-
-                    if (isNonOverridable && isAccessingInstanceField) {
-                        J.Modifier staticModifier = new J.Modifier(Tree.randomId(), Space.build(" ", Collections.emptyList()), Markers.EMPTY, J.Modifier.Type.Static, Collections.emptyList());
-                        md = md.withModifiers(ListUtils.concat(staticModifier, md.getModifiers()));
-                    }
+                if (isNonOverridable && !isAccessingInstanceField) {
+                    J.Modifier staticModifier = new J.Modifier(Tree.randomId(), Space.build(" ", Collections.emptyList()), Markers.EMPTY, J.Modifier.Type.Static, Collections.emptyList());
+                    md = md.withModifiers(ListUtils.concat(staticModifier, md.getModifiers()));
                 }
 
                 return md;
             }
-            */
 
+            @Override
+            public J.Identifier visitIdentifier(J.Identifier identifier, ExecutionContext executionContext) {
+                J.Identifier i = super.visitIdentifier(identifier, executionContext);
+
+                J.ClassDeclaration parentClassDeclaration = getCursor().firstEnclosing(J.ClassDeclaration.class);
+                if (parentClassDeclaration != null) {
+                    final List<J.VariableDeclarations> allClassVariableDeclarations = parentClassDeclaration.getBody().getStatements().stream()
+                            .filter(J.VariableDeclarations.class::isInstance)
+                            .map(J.VariableDeclarations.class::cast)
+                            .collect(Collectors.toList());
+
+                    final List<J.VariableDeclarations.NamedVariable> instanceVariables = allClassVariableDeclarations.stream()
+                            .filter(v -> !v.hasModifier(J.Modifier.Type.Static))
+                            .flatMap(vd -> vd.getVariables().stream())
+                            .collect(Collectors.toList());
+
+
+                    Set<String> variableTypeSignatures = instanceVariables.stream().map(J.VariableDeclarations.NamedVariable::getVariableType).filter(Objects::nonNull).map(JavaType.Variable::toString).collect(Collectors.toSet());
+
+                    if (identifier.getFieldType() != null && variableTypeSignatures.contains(identifier.getFieldType().toString())) {
+                        Cursor parentCursor = getCursor().dropParentUntil(is -> is instanceof J.MethodDeclaration || is instanceof J.VariableDeclarations || is instanceof J.ClassDeclaration);
+                        if (parentCursor.getValue() instanceof J.MethodDeclaration) {
+                            parentCursor.putMessage("USES_INSTANCE_VARIABLE", Boolean.TRUE);
+                        }
+                    }
+                }
+                return i;
+            }
         };
     }
-
-    private static class InstanceVariablesUsage {
-        public static Set<J.MethodDeclaration> find(J.VariableDeclarations declarations, J.ClassDeclaration parentClass) {
-            Set<J.MethodDeclaration> methodsFoundIn = new HashSet<>();
-            Set<String> variableTypeSignatures = declarations.getVariables().stream().map(J.VariableDeclarations.NamedVariable::getVariableType).filter(Objects::nonNull).map(JavaType.Variable::toString).collect(Collectors.toSet());
-
-
-            JavaIsoVisitor<Set<J.MethodDeclaration>> visitor =
-                    new JavaIsoVisitor<Set<J.MethodDeclaration>>() {
-
-                        @Override
-                        public J.Identifier visitIdentifier(J.Identifier identifier,
-                                                            Set<J.MethodDeclaration> methodsFoundIn) {
-                            if (identifier.getFieldType() != null && variableTypeSignatures.contains(identifier.getFieldType().toString())) {
-                                Cursor parent = getCursor().dropParentUntil(is -> is instanceof J.MethodDeclaration || is instanceof J.VariableDeclarations || is instanceof J.ClassDeclaration);
-                                if(parent.getValue() instanceof J.MethodDeclaration) {
-                                    methodsFoundIn.add(parent.getValue());
-                                }
-                            }
-                            return super.visitIdentifier(identifier, methodsFoundIn);
-                        }
-                    };
-
-            visitor.visit(parentClass, methodsFoundIn);
-            return methodsFoundIn;
-        }
-    }
-
 }
