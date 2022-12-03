@@ -15,6 +15,8 @@ plugins {
 
     id("nebula.javadoc-jar") version "18.4.0"
     id("nebula.source-jar") version "18.4.0"
+
+    id("org.jetbrains.kotlin.jvm") version("1.7.20")
 }
 
 apply(plugin = "nebula.publish-verification")
@@ -30,7 +32,7 @@ java {
 }
 
 // Set as appropriate for your organization
-group = "com.yourorg"
+group = "org.openrewrite"
 description = "Rewrite recipes."
 
 repositories {
@@ -66,6 +68,13 @@ dependencies {
 
     testImplementation("org.openrewrite:rewrite-test")
     testImplementation("org.assertj:assertj-core:latest.release")
+
+    testImplementation("org.jetbrains.kotlin:kotlin-reflect")
+    testImplementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+}
+
+tasks.named<JavaCompile>("compileJava") {
+    options.release.set(8)
 }
 
 tasks.named<Test>("test") {
