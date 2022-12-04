@@ -3,16 +3,9 @@ package org.openrewrite.java.cleanup;
 import org.openrewrite.Cursor;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Recipe;
-import org.openrewrite.Tree;
-import org.openrewrite.internal.ListUtils;
 import org.openrewrite.java.JavaIsoVisitor;
 import org.openrewrite.java.tree.J;
 import org.openrewrite.java.tree.JavaType;
-import org.openrewrite.java.tree.Space;
-import org.openrewrite.java.tree.Statement;
-import org.openrewrite.marker.Markers;
-
-import java.lang.reflect.Array;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,9 +30,20 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
             public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext executionContext) {
                 J.ClassDeclaration cd = super.visitClassDeclaration(classDeclaration, executionContext);
 
-                final Set<J.VariableDeclarations> allClassVariableDeclarations =  cd.getBody().getStatements().stream().filter(s -> s instanceof J.VariableDeclarations).map(s -> (J.VariableDeclarations) s).collect(Collectors.toSet());
-                final Set<J.VariableDeclarations> instanceVariableDeclarations = allClassVariableDeclarations.stream().filter(vd -> !vd.hasModifier(J.Modifier.Type.Static)).collect(Collectors.toSet());
-                Set<J.MethodDeclaration> methodsToMakeStatic = instanceVariableDeclarations.stream().map(vd -> InstanceVariablesUsage.find(vd, cd)).flatMap(Set::stream).collect(Collectors.toSet());
+                final List<J.VariableDeclarations> allClassVariableDeclarations = classDeclaration.getBody().getStatements().stream()
+                        .filter(J.VariableDeclarations.class::isInstance)
+                        .map(J.VariableDeclarations.class::cast)
+                        .collect(Collectors.toList());
+
+                final Set<String> instanceVariablesSignatures = allClassVariableDeclarations.stream()
+                        .filter(v -> !v.hasModifier(J.Modifier.Type.Static))
+                        .flatMap(vd -> vd.getVariables().stream())
+                        .map(J.VariableDeclarations.NamedVariable::getVariableType)
+                        .filter(Objects::nonNull)
+                        .map(JavaType.Variable::toString)
+                        .collect(Collectors.toSet());
+
+                Set<J.MethodDeclaration> methodsToMakeStatic = FindMethodsUsingInstanceVariables.find(instanceVariablesSignatures, cd);
 
 
 
@@ -89,11 +93,9 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
         };
     }
 
-    private static class InstanceVariablesUsage {
-        public static Set<J.MethodDeclaration> find(J.VariableDeclarations declarations, J.ClassDeclaration parentClass) {
+    private static class FindMethodsUsingInstanceVariables {
+        public static Set<J.MethodDeclaration> find(Set<String> instanceVariableSignatures, J.ClassDeclaration parentClass) {
             Set<J.MethodDeclaration> methodsFoundIn = new HashSet<>();
-            Set<String> variableTypeSignatures = declarations.getVariables().stream().map(J.VariableDeclarations.NamedVariable::getVariableType).filter(Objects::nonNull).map(JavaType.Variable::toString).collect(Collectors.toSet());
-
 
             JavaIsoVisitor<Set<J.MethodDeclaration>> visitor =
                     new JavaIsoVisitor<Set<J.MethodDeclaration>>() {
@@ -101,7 +103,7 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
                         @Override
                         public J.Identifier visitIdentifier(J.Identifier identifier,
                                                             Set<J.MethodDeclaration> methodsFoundIn) {
-                            if (identifier.getFieldType() != null && variableTypeSignatures.contains(identifier.getFieldType().toString())) {
+                            if (identifier.getFieldType() != null && instanceVariableSignatures.contains(identifier.getFieldType().toString())) {
                                 Cursor parent = getCursor().dropParentUntil(is -> is instanceof J.MethodDeclaration || is instanceof J.VariableDeclarations || is instanceof J.ClassDeclaration);
                                 if(parent.getValue() instanceof J.MethodDeclaration) {
                                     methodsFoundIn.add(parent.getValue());
@@ -115,5 +117,4 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
             return methodsFoundIn;
         }
     }
-
 }

@@ -13,16 +13,14 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     @Test
     fun privateMethodAccessingStaticFieldIsMadeStatic() = rewriteRun(
         java(
-            """
-            class Utilities {
+            """class Utilities {
                 private static String myString = "My string";
                 private String getMyString() {
                     return myString;
                 }
             }
         """,
-            """    
-            class Utilities {
+            """class Utilities {
                 private static String myString = "My string";
                 private static String getMyString() {
                     return myString;
@@ -35,15 +33,13 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     @Test
     fun privateMethodAccessingNoFieldsIsMadeStatic() = rewriteRun(
         java(
-            """
-            class Utilities {
+            """class Utilities {
                 private String getMyString() {
                     return "My string";
                 }
             }
         """,
-            """    
-            class Utilities {
+            """class Utilities {
                 private static String getMyString() {
                     return "My string";
                 }
@@ -55,16 +51,14 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     @Test
     fun privateMethodAccessingInstanceFieldIsNotMadeStatic() = rewriteRun(
         java(
-            """
-            class Utilities {
+            """class Utilities {
                 private String myString = "My string";
                 private String getMyString() {
                     return myString;
                 }
             }
         """,
-            """    
-            class Utilities {
+            """class Utilities {
                 private String myString = "My string";
                 private String getMyString() {
                     return myString;
@@ -77,16 +71,14 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     @Test
     fun finalMethodAccessingStaticFieldIsMadeStatic() = rewriteRun(
         java(
-            """
-            class Utilities {
+            """class Utilities {
                 private static String myString = "My string";
                 final public String getMyString() {
                     return myString;
                 }
             }
         """,
-            """    
-            class Utilities {
+            """class Utilities {
                 private static String myString = "My string";
                 final public static String getMyString() {
                     return myString;
@@ -99,15 +91,13 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     @Test
     fun finalMethodAccessingNoFieldsIsMadeStatic() = rewriteRun(
         java(
-            """
-            class Utilities {
+            """class Utilities {
                 final public String getMyString() {
                     return myString;
                 }
             }
         """,
-            """    
-            class Utilities {
+            """class Utilities {
                 final public static String getMyString() {
                     return myString;
                 }
@@ -119,16 +109,14 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     @Test
     fun finalMethodAccessingInstanceFieldIsNotMadeStatic() = rewriteRun(
         java(
-            """
-            class Utilities {
+            """class Utilities {
                 private String myString = "My string";
                 final public String getMyString() {
                     return myString;
                 }
             }
         """,
-            """    
-            class Utilities {
+            """class Utilities {
                 private String myString = "My string";
                 final public String getMyString() {
                     return myString;
@@ -141,16 +129,14 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     @Test
     fun overridableMethodAccessingStaticFieldIsNotMadeStatic() = rewriteRun(
         java(
-            """
-            class Utilities {
+            """class Utilities {
                 private static String myString = "My string";
                 public String getMyString() {
                     return myString;
                 }
             }
         """,
-            """    
-            class Utilities {
+            """class Utilities {
                 private static String myString = "My string";
                 public String getMyString() {
                     return myString;
@@ -163,15 +149,13 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     @Test
     fun overridableMethodAccessingNoFieldIsNotMadeStatic() = rewriteRun(
         java(
-            """
-            class Utilities {
+            """class Utilities {
                 public String getMyString() {
                     return "My string";
                 }
             }
         """,
-            """    
-            class Utilities {
+            """class Utilities {
                 public String getMyString() {
                     return "My string";
                 }
@@ -183,8 +167,7 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     @Test
     fun overridableMethodAccessingInstanceFieldIsNotMadeStatic() = rewriteRun(
         java(
-            """
-            class Utilities {
+            """class Utilities {
                 private String myString = "My string";
                 private String myOtherString = "My other string";
                 public String getMyString() {
@@ -192,8 +175,7 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
                 }
             }
         """,
-            """    
-            class Utilities {
+            """class Utilities {
                 private String myString = "My string";
                 private String myOtherString = "My other string";
                 public String getMyString() {
