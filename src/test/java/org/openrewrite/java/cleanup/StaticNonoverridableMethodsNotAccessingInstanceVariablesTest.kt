@@ -16,7 +16,7 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
             """
             class Utilities {
                 private static String myString = "My string";
-                
+            
                 private String getMyString() {
                     return myString;
                 }
@@ -25,7 +25,7 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
             """
             class Utilities {
                 private static String myString = "My string";
-                
+            
                 private static String getMyString() {
                     return myString;
                 }
@@ -68,13 +68,14 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
         """)
     )
 
+    // It's debatable whether we should transform the method into "public static final" or simply "public static" since static methods are final by nature
     @Test
     fun finalMethodAccessingStaticFieldIsMadeStatic() = rewriteRun(
         java(
             """
             class Utilities {
                 private static String myString = "My string";
-                
+            
                 final public String getMyString() {
                     return myString;
                 }
@@ -83,8 +84,8 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
             """
             class Utilities {
                 private static String myString = "My string";
-                
-                final public static String getMyString() {
+            
+                public static final String getMyString() {
                     return myString;
                 }
             }
@@ -98,14 +99,14 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
             """
             class Utilities {
                 public final String getMyString() {
-                    return myString;
+                    return "My string";
                 }
             }
         """,
             """
             class Utilities {
                 public static final String getMyString() {
-                    return myString;
+                    return "My string";
                 }
             }
         """
@@ -161,10 +162,99 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
             """
             class Utilities {
                 private String myString = "My string";
-                private String myOtherString = "My other string";
                 
                 public String getMyString() {
                     return myString;
+                }
+            }
+        """
+        )
+    )
+
+    @Test
+    fun privateMethodAccessingStaticFieldInLambdaIsMadeStatic() = rewriteRun(
+        java(
+            """
+            class Utilities {
+                private static String myString = "My string";
+            
+                interface MyInterface {
+                    String grabMyString();
+                }
+            
+                private String getMyString() {
+                    MyInterface msg = () -> myString;
+                    return msg.grabMyString();
+                }
+            }
+        """,
+            """
+            class Utilities {
+                private static String myString = "My string";
+            
+                interface MyInterface {
+                    String grabMyString();
+                }
+            
+                private static String getMyString() {
+                    MyInterface msg = () -> myString;
+                    return msg.grabMyString();
+                }
+            }
+        """
+        )
+    )
+
+    @Test
+    fun privateMethodAccessingStaticFieldInOuterClassIsMadeStatic() = rewriteRun(
+        java(
+            """
+            class OuterUtilities {
+                private static String myString = "My string";
+                
+                class InnerUtilities {
+                    private String getMyString() {
+                        return myString;
+                    }
+                }
+            }
+        """,
+            """
+            class OuterUtilities {
+                private static String myString = "My string";
+                
+                class InnerUtilities {
+                    private static String getMyString() {
+                        return myString;
+                    }
+                }
+            }
+        """
+        )
+    )
+
+    @Test
+    fun privateMethodAccessingInstanceFieldInOuterClassIsNotMadeStatic() = rewriteRun(
+        java(
+            """
+            class OuterUtilities {
+                private String myString = "My string";
+                
+                class InnerUtilities {
+                    private String getMyString() {
+                        return myString;
+                    }
+                }
+            }
+        """,
+            """
+            class OuterUtilities {
+                private String myString = "My string";
+                
+                class InnerUtilities {
+                    private String getMyString() {
+                        return myString;
+                    }
                 }
             }
         """

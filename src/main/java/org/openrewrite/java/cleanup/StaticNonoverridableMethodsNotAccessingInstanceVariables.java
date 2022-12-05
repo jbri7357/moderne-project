@@ -35,12 +35,9 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
             public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext executionContext) {
                 J.ClassDeclaration cd = super.visitClassDeclaration(classDeclaration, executionContext);
 
-                final List<J.VariableDeclarations> allClassVariableDeclarations = classDeclaration.getBody().getStatements().stream()
+                final Set<String> instanceVariablesSignatures = classDeclaration.getBody().getStatements().stream()
                         .filter(J.VariableDeclarations.class::isInstance)
                         .map(J.VariableDeclarations.class::cast)
-                        .collect(Collectors.toList());
-
-                final Set<String> instanceVariablesSignatures = allClassVariableDeclarations.stream()
                         .filter(v -> !v.hasModifier(J.Modifier.Type.Static))
                         .flatMap(vd -> vd.getVariables().stream())
                         .map(J.VariableDeclarations.NamedVariable::getVariableType)
@@ -63,8 +60,7 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
 
             new JavaIsoVisitor<Set<String>>() {
                 @Override
-                public J.Identifier visitIdentifier(J.Identifier identifier,
-                                                    Set<String> methodsFoundIn) {
+                public J.Identifier visitIdentifier(J.Identifier identifier, Set<String> methodsFoundIn) {
                     if (identifier.getFieldType() != null && instanceVariableSignatures.contains(identifier.getFieldType().toString())) {
                         Cursor parent = getCursor().dropParentUntil(is -> is instanceof J.MethodDeclaration || is instanceof J.VariableDeclarations || is instanceof J.ClassDeclaration);
                         if (parent.getValue() instanceof J.MethodDeclaration) {
@@ -89,16 +85,16 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
         @Override
         public J.MethodDeclaration visitMethodDeclaration(J.MethodDeclaration methodDeclaration, ExecutionContext executionContext) {
             J.MethodDeclaration md = super.visitMethodDeclaration(methodDeclaration, executionContext);
+
             boolean isNonOverridable = (md.hasModifier(J.Modifier.Type.Private) || md.hasModifier(J.Modifier.Type.Final));
 
             if (!methodsUsingInstanceVariables.contains(md.toString()) && isNonOverridable && !md.hasModifier((J.Modifier.Type.Static))) {
                 J.Modifier staticModifier = new J.Modifier(Tree.randomId(), Space.build(" ", Collections.emptyList()), Markers.EMPTY, J.Modifier.Type.Static, Collections.emptyList());
                 md = md.withModifiers(ModifierOrder.sortModifiers(ListUtils.concat(staticModifier, md.getModifiers())));
-                if(getCursor().getParent() != null) {
+                if (getCursor().getParent() != null) {
                     md = autoFormat(md, md, executionContext, getCursor().getParent());
                 }
             }
-
             return md;
         }
     }
