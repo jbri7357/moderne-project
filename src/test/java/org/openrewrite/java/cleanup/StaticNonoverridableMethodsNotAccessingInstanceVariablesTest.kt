@@ -246,15 +246,19 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
                     }
                 }
             }
-        """,
+        """
+        )
+    )
+
+    @Test
+    fun privateMethodAccessingInstanceFieldUsingThisKeywordIsNotMadeStatic() = rewriteRun(
+        java(
             """
-            class OuterUtilities {
+            class Utilities {
                 private String myString = "My string";
-                
-                class InnerUtilities {
-                    private String getMyString() {
-                        return myString;
-                    }
+            
+                private String getMyString() {
+                    return this.myString;
                 }
             }
         """

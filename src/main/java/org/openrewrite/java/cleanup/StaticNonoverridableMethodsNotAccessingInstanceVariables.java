@@ -32,10 +32,11 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
 
 
             @Override
-            public J.ClassDeclaration visitClassDeclaration(J.ClassDeclaration classDeclaration, ExecutionContext executionContext) {
-                J.ClassDeclaration cd = super.visitClassDeclaration(classDeclaration, executionContext);
+            public J.CompilationUnit visitCompilationUnit(J.CompilationUnit compilationUnit, ExecutionContext executionContext) {
+                J.CompilationUnit cu = super.visitCompilationUnit(compilationUnit, executionContext);
 
-                final Set<String> instanceVariablesSignatures = classDeclaration.getBody().getStatements().stream()
+                final Set<String> instanceVariablesSignatures = compilationUnit.getClasses().stream()
+                        .flatMap(cd -> cd.getBody().getStatements().stream())
                         .filter(J.VariableDeclarations.class::isInstance)
                         .map(J.VariableDeclarations.class::cast)
                         .filter(v -> !v.hasModifier(J.Modifier.Type.Static))
@@ -45,17 +46,17 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
                         .map(JavaType.Variable::toString)
                         .collect(Collectors.toSet());
 
-                Set<String> methodsUsingInstanceVariables = FindMethodsUsingInstanceVariables.find(instanceVariablesSignatures, cd);
+                Set<String> methodsUsingInstanceVariables = FindMethodsUsingInstanceVariables.find(instanceVariablesSignatures, cu);
 
                 doAfterVisit(new SetNonoverridableMethodsToStaticVisitor(methodsUsingInstanceVariables));
 
-                return cd;
+                return cu;
             }
         };
     }
 
     private static class FindMethodsUsingInstanceVariables {
-        public static Set<String> find(Set<String> instanceVariableSignatures, J.ClassDeclaration parentClass) {
+        public static Set<String> find(Set<String> instanceVariableSignatures, J.CompilationUnit parentClass) {
             Set<String> methodsFoundIn = new HashSet<>();
 
             new JavaIsoVisitor<Set<String>>() {
