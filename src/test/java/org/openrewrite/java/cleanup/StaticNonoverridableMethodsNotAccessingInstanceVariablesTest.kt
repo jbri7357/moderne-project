@@ -264,4 +264,38 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
         """
         )
     )
+
+    @Test
+    fun privateOverloadedMethodAccessingStaticFieldIsMadeStatic() = rewriteRun(
+        java(
+            """
+            class Utilities {
+                private static String myString = "My string";
+                private String myOtherString = "My  other string";
+            
+                private String getMyString(String stringPrefix) {
+                    return stringPrefix + myString;
+                }
+                
+                private String getMyString(Integer integerPrefix) {
+                    return integerPrefix + myOtherString;
+                }
+            }
+        """,
+            """
+            class Utilities {
+                private static String myString = "My string";
+                private String myOtherString = "My  other string";
+            
+                private static String getMyString(String stringPrefix) {
+                    return stringPrefix + myString;
+                }
+                
+                private String getMyString(Integer integerPrefix) {
+                    return integerPrefix + myOtherString;
+                }
+            }
+        """
+        )
+    )
 }
