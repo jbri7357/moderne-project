@@ -91,9 +91,12 @@ public class StaticNonoverridableMethodsNotAccessingInstanceVariables extends Re
             J.MethodDeclaration md = super.visitMethodDeclaration(methodDeclaration, executionContext);
             boolean isNonOverridable = (md.hasModifier(J.Modifier.Type.Private) || md.hasModifier(J.Modifier.Type.Final));
 
-            if (!methodsUsingInstanceVariables.contains(md.toString()) && isNonOverridable) {
+            if (!methodsUsingInstanceVariables.contains(md.toString()) && isNonOverridable && !md.hasModifier((J.Modifier.Type.Static))) {
                 J.Modifier staticModifier = new J.Modifier(Tree.randomId(), Space.build(" ", Collections.emptyList()), Markers.EMPTY, J.Modifier.Type.Static, Collections.emptyList());
-                md = md.withModifiers(ListUtils.concat(staticModifier, md.getModifiers()));
+                md = md.withModifiers(ModifierOrder.sortModifiers(ListUtils.concat(staticModifier, md.getModifiers())));
+                if(getCursor().getParent() != null) {
+                    md = autoFormat(md, md, executionContext, getCursor().getParent());
+                }
             }
 
             return md;
