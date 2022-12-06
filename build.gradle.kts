@@ -33,6 +33,7 @@ java {
 
 // Set as appropriate for your organization
 group = "org.openrewrite"
+version = "0.0.1-SNAPSHOT"
 description = "Rewrite recipes."
 
 repositories {
@@ -50,14 +51,12 @@ configurations.all {
     }
 }
 
-//The bom version can also be set to a specific version or latest.release.
-val rewriteBomVersion = "latest.integration"
 
 dependencies {
     compileOnly("org.projectlombok:lombok:latest.release")
     compileOnly("com.google.code.findbugs:jsr305:latest.release")
     annotationProcessor("org.projectlombok:lombok:latest.release")
-    implementation(platform("org.openrewrite.recipe:rewrite-recipe-bom:${rewriteBomVersion}"))
+    implementation(platform("org.openrewrite.recipe:rewrite-recipe-bom:latest.release"))
 
     implementation("org.openrewrite:rewrite-java")
     runtimeOnly("org.openrewrite:rewrite-java-17")
