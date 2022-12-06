@@ -1,6 +1,7 @@
+package org.openrewrite.java.cleanup
+
 import org.junit.jupiter.api.Test
 import org.openrewrite.java.Assertions.java
-import org.openrewrite.java.cleanup.StaticNonoverridableMethodsNotAccessingInstanceVariables
 import org.openrewrite.test.RecipeSpec
 import org.openrewrite.test.RewriteTest
 
@@ -92,7 +93,7 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
         """
         )
     )
-
+    // It's debatable whether we should transform the method into "public static final" or simply "public static" since static methods are final by nature
     @Test
     fun finalMethodAccessingNoFieldsIsMadeStatic() = rewriteRun(
         java(
