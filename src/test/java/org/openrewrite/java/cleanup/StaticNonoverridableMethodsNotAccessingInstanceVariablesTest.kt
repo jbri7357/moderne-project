@@ -207,51 +207,6 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
     )
 
     @Test
-    fun privateMethodAccessingStaticFieldInOuterClassIsMadeStatic() = rewriteRun(
-        java(
-            """
-            class OuterUtilities {
-                private static String myString = "My string";
-                
-                class InnerUtilities {
-                    private String getMyString() {
-                        return myString;
-                    }
-                }
-            }
-        """,
-            """
-            class OuterUtilities {
-                private static String myString = "My string";
-                
-                class InnerUtilities {
-                    private static String getMyString() {
-                        return myString;
-                    }
-                }
-            }
-        """
-        )
-    )
-
-    @Test
-    fun privateMethodAccessingInstanceFieldInOuterClassIsNotMadeStatic() = rewriteRun(
-        java(
-            """
-            class OuterUtilities {
-                private String myString = "My string";
-                
-                class InnerUtilities {
-                    private String getMyString() {
-                        return myString;
-                    }
-                }
-            }
-        """
-        )
-    )
-
-    @Test
     fun privateMethodAccessingInstanceFieldUsingThisKeywordIsNotMadeStatic() = rewriteRun(
         java(
             """
@@ -294,6 +249,138 @@ class StaticNonoverridableMethodsNotAccessingInstanceVariablesTest : RewriteTest
                 
                 private String getMyString(Integer integerPrefix) {
                     return integerPrefix + myOtherString;
+                }
+            }
+        """
+        )
+    )
+
+    // Abstract methods cannot be private or final, so we won't be making them static
+    @Test
+    fun abstractMethodIsNotMadeStatic() = rewriteRun(
+        java(
+            """
+            class Utilities {
+                abstract public String getMyString();
+                abstract protected String getMyOtherString();
+            }
+        """)
+    )
+
+    // We can have static and default methods in interfaces since Java 8+.
+    // Interface methods can have static, default, or abstract modifiers.
+    // They also can't be final or private, so static will not be applied
+    // based on how our code currently works.
+    @Test
+    fun interfaceMethodsAreNotMadeStatic() = rewriteRun(
+        java(
+            """
+            interface Utilities {
+                String getMyString();
+                
+                static String getMyOtherString() {
+                    return "other string";
+                }
+                
+                default String getMyOtherOtherString() {
+                    return "other other string";
+                }
+            }
+        """)
+    )
+
+    //Static declarations in inner classes are not supported until Java 16+, so we will skip applying static
+    @Test
+    fun methodInInnerClassIsNotMadeStatic() = rewriteRun(
+        java(
+            """
+            class OuterUtilities {
+                class InnerUtilities {
+                    private static String myString = "My string";
+                    
+                    private String getMyString() {
+                        return myString;
+                    }
+                }
+            }
+        """
+        )
+    )
+
+    @Test
+    fun multipleClassesWithPrivateMethodAccessingMixedFields() = rewriteRun(
+        java(
+            """
+            class Utilities1 {
+                private String myString = "My string";
+            
+                private String getMyString() {
+                    return myString;
+                }
+            }
+            
+            class Utilities2 {
+                private static String myString = "My string";
+            
+                private String getMyString() {
+                    return myString;
+                }
+            }
+        """,
+            """
+            class Utilities1 {
+                private String myString = "My string";
+            
+                private String getMyString() {
+                    return myString;
+                }
+            }
+            
+            class Utilities2 {
+                private static String myString = "My string";
+            
+                private static String getMyString() {
+                    return myString;
+                }
+            }
+        """
+        )
+    )
+
+    @Test
+    fun multipleClassesWithMethodsAccessingStaticFieldsAcrossClasses() = rewriteRun(
+        java(
+            """
+            class Utilities1 {
+                private static String myString = "My string";
+            
+                private String getMyString() {
+                    return Utilities2.myString;
+                }
+            }
+            
+            class Utilities2 {
+                private static String myString = "My string";
+            
+                private String getMyString() {
+                    return Utilities1.myString;
+                }
+            }
+        """,
+            """
+            class Utilities1 {
+                private static String myString = "My string";
+            
+                private static String getMyString() {
+                    return Utilities2.myString;
+                }
+            }
+            
+            class Utilities2 {
+                private static String myString = "My string";
+            
+                private static String getMyString() {
+                    return Utilities1.myString;
                 }
             }
         """
